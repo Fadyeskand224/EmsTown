@@ -91,7 +91,7 @@ function initialSpawn() {
 }
 
 // ---------- physics ----------
-const CAR_CIRCLES = [-1.5, 0, 1.5], CAR_R = 1.0, WHEELBASE = 3.0;
+let CAR_CIRCLES = [-1.5, 0, 1.5], CAR_R = 1.0, WHEELBASE = 3.0, WHEEL_R = 0.375, STATS = { topSpeed: 30, accel: 12.5, steer: 0.62, grip: 9 }; // set from the chosen model
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 let world, carModel, garage, inGarage = false;
 
@@ -137,19 +137,19 @@ function stepCar(dt) {
   const fx = Math.sin(car.h), fz = Math.cos(car.h), rx = -fz, rz = fx;
   let vF = car.vx * fx + car.vz * fz, vL = car.vx * rx + car.vz * rz;
   const onHard = world.roadDist(car.x, car.z) < world.roadWidth / 2 + 0.6 || Math.hypot(car.x - PLAZA.x, car.z - PLAZA.z) < PLAZA.r || STOPS.some((s) => Math.hypot(car.x - s.park.x, car.z - s.park.z) < 10);
-  const maxF = onHard ? 30 : 15;
+  const maxF = onHard ? STATS.topSpeed : STATS.topSpeed * 0.5;
 
   braking = false;
-  if (throttle > 0.05) { vF += (vF < 0 ? 30 : 12.5 * Math.max(0.1, 1 - Math.max(0, vF) / maxF)) * throttle * dt; }
+  if (throttle > 0.05) { vF += (vF < 0 ? 30 : STATS.accel * Math.max(0.1, 1 - Math.max(0, vF) / maxF)) * throttle * dt; }
   else if (throttle < -0.05) { if (vF > 0.5) { vF -= 28 * -throttle * dt; braking = true; } else vF = Math.max(-9, vF + 8 * throttle * dt); }
   else { const c = (1.4 + (onHard ? 0 : 3.5)) * dt; vF = Math.abs(vF) <= c ? 0 : vF - Math.sign(vF) * c; }
   if (locked) { vF *= Math.exp(-3.5 * dt); vL *= Math.exp(-3.5 * dt); braking = Math.abs(vF) > 1; }
   if (hand && Math.abs(vF) > 0.5) { vF -= Math.sign(vF) * 14 * dt; braking = true; }
   if (vF > maxF) vF -= (vF - maxF) * Math.min(1, 2.2 * dt);
   vF *= Math.exp(-0.035 * dt);
-  vL *= Math.exp(-(hand ? 1.3 : onHard ? 9 : 6) * dt);
+  vL *= Math.exp(-(hand ? 1.3 : onHard ? STATS.grip : STATS.grip * 0.67) * dt);
 
-  const maxSteer = 0.62 / (1 + Math.abs(vF) * 0.075);
+  const maxSteer = STATS.steer / (1 + Math.abs(vF) * 0.075);
   car.steer += (steerIn * maxSteer - car.steer) * Math.min(1, dt * 7);
   const yaw = (vF / WHEELBASE) * Math.tan(car.steer) * (hand ? 1.35 : 1);
   car.h += yaw * dt;
@@ -173,7 +173,7 @@ function stepCar(dt) {
 
   // body motion + wheels
   const speed = Math.hypot(car.vx, car.vz);
-  car.spin -= (car.vx * nfx + car.vz * nfz) * dt / 0.375;
+  car.spin -= (car.vx * nfx + car.vz * nfz) * dt / WHEEL_R;
   car.pitch += (THREE.MathUtils.clamp(-car.ax * 0.006, -0.05, 0.05) - car.pitch) * Math.min(1, dt * 6);
   car.roll += (THREE.MathUtils.clamp(-yaw * speed * 0.0045, -0.07, 0.07) - car.roll) * Math.min(1, dt * 6);
   return speed;
@@ -267,8 +267,12 @@ function init() {
   world = createWorld(scene, renderer, camera, { touch });
   indexCircles(world.circles);
   const carCfg = loadCar();
-  carModel = createCar(carCfg, scene.environment); scene.add(carModel.root);
-  garage = createGarage({ camera, canvas, car, carModel, cfg: carCfg, onClose: () => { inGarage = false; dismissed.add('garage'); saveState(); } });
+  const useModel = () => { const s = carModel.spec; CAR_CIRCLES = s.circles; CAR_R = s.radius; WHEELBASE = s.wheelbase; WHEEL_R = s.wheelR; STATS = s.stats; };
+  carModel = createCar(carCfg, scene.environment); scene.add(carModel.root); useModel();
+  const switchModel = (id) => { // swap the 3D car in place (the garage calls this when you pick a different model)
+    carCfg.model = id; scene.remove(carModel.root); carModel.dispose(); carModel = createCar(carCfg, scene.environment); scene.add(carModel.root); useModel(); return carModel;
+  };
+  garage = createGarage({ camera, canvas, car, carModel, cfg: carCfg, onModel: switchModel, onClose: () => { inGarage = false; dismissed.add('garage'); saveState(); } });
   buildMinimap();
   initialSpawn();
   camH = car.h; camera.position.set(car.x - Math.sin(camH) * 9, 3.5, car.z - Math.cos(camH) * 9);

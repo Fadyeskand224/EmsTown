@@ -1,5 +1,6 @@
 // What the player can change in the Ems Garage, the choices offered, and saving.
 export const DEFAULT_CAR = {
+  model: 'sedan',
   paint: '#a30d20', finish: 'gloss', roof: '#eadfc4',
   trim: 'chrome', bumpers: 'chrome', bullets: true,
   wheel: 'dome', rim: 'chrome', tire: 'white',

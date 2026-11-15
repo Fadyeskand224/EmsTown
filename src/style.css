@@ -75,3 +75,13 @@ canvas#game { display: block; width: 100vw; height: 100vh; }
   .g-panel { top: auto; left: 0; right: 0; width: 100%; height: 46vh; border-radius: 20px 20px 0 0; padding-top: 0; box-shadow: 0 -10px 40px rgba(0, 0, 0, .4); }
   .g-head { padding: 12px 14px 6px; }
 }
+
+.g-cars { display: grid; gap: 10px; }
+.g-car { display: flex; gap: 12px; text-align: left; border: 1px solid rgba(255, 255, 255, .16); background: rgba(255, 255, 255, .05); color: #eef4fa; padding: 12px; border-radius: 14px; cursor: pointer; }
+.g-car.on { border-color: #2a78c8; background: rgba(42, 120, 200, .22); box-shadow: 0 0 0 2px #2a78c8 inset; }
+.gc-ico { font-size: 34px; line-height: 1; flex: none; width: 44px; text-align: center; padding-top: 2px; }
+.gc-txt { display: grid; gap: 3px; min-width: 0; }
+.gc-txt b { font-size: 15px; } .gc-txt small { opacity: .65; font-size: 12px; line-height: 1.3; }
+.gc-stats { display: grid; grid-template-columns: auto 1fr; gap: 1px 10px; margin-top: 4px; align-items: center; }
+.gc-stats em { font-style: normal; font-size: 11px; opacity: .6; }
+.gc-stats i { font-style: normal; font-size: 9px; letter-spacing: 1px; color: #5aa9f0; } .gc-stats i s { text-decoration: none; color: rgba(255, 255, 255, .18); }

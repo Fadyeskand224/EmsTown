@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import {
   DEFAULT_CAR, PAINTS, ROOFS, FINISHES, METALS, BUMPERS, WHEELS, RIMS, TIRES, TINTS, HEADLIGHTS, TAILS, GLOWS, SEATS, CARPETS, DASHES, saveCar,
 } from './customize.js';
+import { MODEL_LIST } from './car.js';
 
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
@@ -16,12 +17,20 @@ const VIEWS = {
   interior: { az: 0.45, el: 0.78, dist: 5.0, tgt: [0, 0.95, 0.05], label: 'Interior', cutaway: true },
 };
 
-export function createGarage({ camera, canvas, car, carModel, cfg, onClose }) {
+export function createGarage({ camera, canvas, car, carModel: initialCar, cfg, onModel, onClose }) {
+  let carModel = initialCar;
   const root = document.getElementById('garage');
   const state = { active: false, auto: true, view: 'angle' };
   const cam = { az: VIEWS.angle.az, el: VIEWS.angle.el, dist: VIEWS.angle.dist, tgt: [...VIEWS.angle.tgt] };
   const want = { ...cam, tgt: [...cam.tgt] };
   const apply = () => { carModel.apply(cfg); saveCar(cfg); };
+  // camera views adapt to the chosen car's size and wheel positions
+  const viewParams = (name) => {
+    const v = VIEWS[name], sp = carModel.spec, k = Math.max(0.7, sp.length / 4.9); let tgt = [...v.tgt], dist = v.dist * k;
+    if (name === 'wheel') { tgt = [sp.track + 0.1, sp.wheelR + 0.05, sp.axleF]; dist = 3.8 * Math.max(0.8, sp.wheelR / 0.375); }
+    if (name === 'interior') { tgt = [...sp.camTgt]; dist = 5.0 * k; }
+    return { ...v, tgt, dist };
+  };
 
   // ---------- panel ----------
   root.innerHTML = '';
@@ -61,8 +70,18 @@ export function createGarage({ camera, canvas, car, carModel, cfg, onClose }) {
     inp.addEventListener('input', () => { inp.value = inp.value.toUpperCase().replace(/[^A-Z0-9 \-]/g, ''); cfg[key] = inp.value; apply(); });
     inp.addEventListener('focus', () => setView('rear')); box.appendChild(inp); box.appendChild(el('small', 'g-note', 'Up to 8 letters or numbers. Shown on the rear bumper.')); return box;
   };
+  const carPicker = () => {
+    const box = el('div', 'g-cars'), bar = (n) => '<i>' + '●'.repeat(n) + '<s>' + '●'.repeat(5 - n) + '</s></i>';
+    for (const m of MODEL_LIST) {
+      const [sp, ac, ha] = m.stats.bars, b = el('button', 'g-car' + (cfg.model === m.id ? ' on' : ''), `<span class="gc-ico">${m.emoji}</span><span class="gc-txt"><b>${m.name}</b><small>${m.blurb}</small><span class="gc-stats"><em>Speed</em>${bar(sp)}<em>Accel</em>${bar(ac)}<em>Handling</em>${bar(ha)}</span></span>`);
+      b.type = 'button'; b.addEventListener('click', () => { if (cfg.model === m.id) return; cfg.model = m.id; carModel = onModel(m.id); apply(); showTab('Car'); });
+      box.appendChild(b);
+    }
+    return box;
+  };
   const sections = {
-    Paint: () => [swatchRow('Body colour', PAINTS, 'paint', { custom: true }), segRow('Finish', FINISHES, 'finish', 'Metallic and pearl catch the sky; matte is flat and dull.'), swatchRow('Roof', ROOFS, 'roof', { custom: true })],
+    Car: () => [carPicker()],
+    Paint: () => [swatchRow('Body colour', PAINTS, 'paint', { custom: true }), segRow('Finish', FINISHES, 'finish', 'Metallic and pearl catch the sky; matte is flat and dull.'), swatchRow('Roof & accent', ROOFS, 'roof', { custom: true })],
     Wheels: () => [segRow('Wheel style', WHEELS, 'wheel'), segRow('Rim finish', RIMS, 'rim'), segRow('Tyres', TIRES, 'tire')],
     Glass: () => [segRow('Window tint', TINTS, 'tint', 'Darker glass hides the interior from outside.')],
     Bumpers: () => [segRow('Bumpers', BUMPERS, 'bumpers'), toggleRow('Bumper bullets', 'bullets'), segRow('Chrome trim', METALS, 'trim', 'Grille, window frames, handles and mirrors.')],
@@ -73,7 +92,7 @@ export function createGarage({ camera, canvas, car, carModel, cfg, onClose }) {
   const tabNames = Object.keys(sections), tabEls = {};
   const showTab = (name) => {
     tabNames.forEach((n) => tabEls[n].classList.toggle('on', n === name)); body.innerHTML = ''; sections[name]().forEach((n) => body.appendChild(n));
-    if (name === 'Wheels') setView('wheel'); else if (name === 'Interior') setView('interior'); else if (name === 'Plate') setView('rear'); else if (name === 'Lights') setView('front'); else if (name === 'Bumpers') setView('front'); else if (state.view === 'wheel' || state.view === 'interior') setView('angle');
+    if (name === 'Wheels') setView('wheel'); else if (name === 'Interior') setView('interior'); else if (name === 'Plate') setView('rear'); else if (name === 'Lights') setView('front'); else if (name === 'Bumpers') setView('front'); else setView('angle');
   };
   for (const n of tabNames) { const t = el('button', null, n); t.type = 'button'; t.addEventListener('click', () => showTab(n)); tabs.appendChild(t); tabEls[n] = t; }
   const reset = el('button', 'g-reset', 'Reset to stock'); reset.type = 'button'; reset.addEventListener('click', () => { Object.assign(cfg, DEFAULT_CAR); apply(); showTab(tabNames.find((n) => tabEls[n].classList.contains('on')) || 'Paint'); });
@@ -82,7 +101,7 @@ export function createGarage({ camera, canvas, car, carModel, cfg, onClose }) {
   // ---------- camera ----------
   const viewBtns = {};
   const setView = (name) => {
-    const v = VIEWS[name]; if (!v) return; state.view = name;
+    if (!VIEWS[name]) return; const v = viewParams(name); state.view = name;
     want.az = v.az; want.el = v.el; want.dist = v.dist; want.tgt = [...v.tgt]; state.auto = name === 'angle'; carModel.setCutaway(!!v.cutaway);
     Object.entries(viewBtns).forEach(([k, b]) => b.classList.toggle('on', k === name));
   };
@@ -102,7 +121,7 @@ export function createGarage({ camera, canvas, car, carModel, cfg, onClose }) {
     open() {
       state.active = true; root.classList.remove('hidden'); document.body.classList.add('in-garage');
       const h = car.h; cam.az = want.az = VIEWS.angle.az + 0.9; cam.el = 0.3; cam.dist = 13; // swing in from further out
-      showTab('Paint'); setView('angle');
+      showTab('Car');
     },
     close() { if (!state.active) return; state.active = false; root.classList.add('hidden'); document.body.classList.remove('in-garage'); carModel.setCutaway(false); camera.clearViewOffset(); onClose(); },
     updateCamera(dt) {
