@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {
-  clapboardTexture, stoneTexture, shingleTexture, plankTexture, cobbleTexture, awningTexture, signTexture, softBlobTexture, rng,
+  clapboardTexture, stoneTexture, shingleTexture, plankTexture, cobbleTexture, awningTexture, signTexture, softBlobTexture, rng, corrugatedTexture, rollupTexture,
 } from './textures.js';
 
 const std = (o) => new THREE.MeshStandardMaterial(o);
@@ -100,7 +100,58 @@ function picnicTable(parent, x, z, ry, umbrellaColor) {
   put(parent, g, x, 0, z, ry);
 }
 
+// The Ems Garage: a workshop with roll-up doors, a vintage pump, tyre stacks and a neon sign.
+function createGarage(stop) {
+  const root = new THREE.Group(), colliders = [];
+  root.position.set(stop.x, 0, stop.z); root.rotation.y = stop.facing;
+  const W = 15, D = 10, H = 4.6, fz = D / 2, blue = 0x2a78c8;
+  const glow = std({ color: 0xcfe9ff, emissive: 0x7fc4ff, emissiveIntensity: 0.6, roughness: 0.3 });
+  const dark = std({ color: 0x23272d, roughness: 0.6, metalness: 0.4 }), steel = std({ color: 0xb9c0c7, roughness: 0.4, metalness: 0.8 });
+  const wallMat = std({ map: corrugatedTexture('#dfe5e8'), roughness: 0.75, metalness: 0.2 });
+  const brick = std({ map: stoneTexture([158, 84, 62]), roughness: 0.95 });
+  const roofMat = std({ map: corrugatedTexture('#6d7a84', true), roughness: 0.6, metalness: 0.4 });
+  solid(root, W + 0.8, 0.4, D + 0.8, std({ color: 0x8c8b86, roughness: 1 }), 0, 0.2, 0);
+  const body = texBox(W, H, D, wallMat, 2.4); body.position.set(0, 0.4 + H / 2, 0); root.add(body);
+  const base = texBox(W + 0.06, 1.1, D + 0.06, brick, 2.2); base.position.set(0, 0.4 + 0.55, 0); root.add(base);
+  root.add(gableRoof(W, D, 1.7, 0.6, roofMat, wallMat, 0.4 + H));
+  solid(root, W + 1.4, 0.2, 0.2, dark, 0, 0.4 + H + 0.05, fz + 0.6); // fascia
+  // two roll-up doors + a side office door and window
+  for (const x of [-3.9, 0.9]) {
+    solid(root, 3.9, 3.5, 0.16, dark, x, 0.4 + 1.75, fz + 0.04);
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(3.5, 3.2, 0.12), std({ map: tiled(rollupTexture('#e6e0d0'), 1, 1), roughness: 0.6, metalness: 0.2 })); slab.castShadow = true; put(root, slab, x, 0.4 + 1.65, fz + 0.12);
+    solid(root, 3.5, 0.08, 0.2, blue ? std({ color: blue, roughness: 0.5 }) : dark, x, 0.4 + 3.32, fz + 0.14);
+    for (const k of [-1, 1]) { const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), glow); put(root, lamp, x + k * 1.9, 0.4 + 3.7, fz + 0.4); solid(root, 0.05, 0.05, 0.35, dark, x + k * 1.9, 0.4 + 3.7, fz + 0.22); }
+  }
+  put(root, windowUnit({ w: 1.3, h: 1.4, glowMat: glow, frameMat: dark }), 5.5, 1.5, fz + 0.02);
+  solid(root, 1.1, 2.2, 0.12, std({ map: plankTexture([60, 90, 120]), roughness: 0.6 }), 5.5, 0.4 + 1.1, fz + 0.06);
+  // sign board over the doors + a blade sign
+  const sign = std({ map: signTexture('Ems Garage', '🔧', '#1c3b66', '#fff6d8'), roughness: 0.6 });
+  const board = new THREE.Mesh(new THREE.BoxGeometry(6.2, 1.9, 0.18), sign); board.castShadow = true; put(root, board, -1.5, 0.4 + H - 0.4, fz + 0.55);
+  const neon = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.04, 8, 28), std({ color: 0x66ccff, emissive: 0x33aaff, emissiveIntensity: 1.8 })); put(root, neon, 5.5, 3.6, fz + 0.15);
+  // props: vintage pump, tyre stacks, drums, tool chest, cones, floodlights
+  { const p = new THREE.Group(); const red = std({ color: 0xb3261e, roughness: 0.4, metalness: 0.3 });
+    solid(p, 0.7, 0.2, 0.7, std({ color: 0x80807c, roughness: 1 }), 0, 0.1, 0); solid(p, 0.5, 1.5, 0.45, red, 0, 0.95, 0);
+    const glass = new THREE.Mesh(new THREE.SphereGeometry(0.28, 16, 12), std({ color: 0xf6f0d0, emissive: 0xffe9a0, emissiveIntensity: 0.4, roughness: 0.2, transparent: true, opacity: 0.85 })); glass.position.y = 1.95; p.add(glass);
+    solid(p, 0.52, 0.12, 0.5, std({ color: 0xf2eee2, roughness: 0.6 }), 0, 1.62, 0); const hose = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.025, 6, 16, Math.PI * 1.4), dark); hose.position.set(0.3, 0.9, 0); hose.rotation.y = Math.PI / 2; p.add(hose);
+    put(root, p, 8.9, 0, fz + 3.2, -0.3); colliders.push({ cx: 8.9, cz: fz + 3.2, hw: 0.5, hd: 0.5 }); }
+  for (const [tx, tz, n] of [[-8.6, fz + 1.0, 5], [-9.7, fz + 1.2, 4]]) for (let i = 0; i < n; i++) { const t = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.17, 12, 28), std({ color: 0x131315, roughness: 0.9 })); t.rotation.x = Math.PI / 2; t.castShadow = true; put(root, t, tx + (i % 2) * 0.03, 0.2 + i * 0.34, tz); }
+  for (const [dx, dz, col] of [[-7.3, fz + 1.0, 0x2a68b8], [-6.6, fz + 1.5, 0xb83a2a]]) { const d = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 1.0, 18), std({ color: col, roughness: 0.5, metalness: 0.4 })); d.castShadow = true; put(root, d, dx, 0.5, dz); for (const y of [0.25, 0.75]) { const r = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.02, 6, 20), dark); r.rotation.x = Math.PI / 2; put(root, r, dx, y, dz); } }
+  { const chest = new THREE.Group(); solid(chest, 1.1, 1.0, 0.55, std({ color: 0xc1352a, roughness: 0.45, metalness: 0.5 }), 0, 0.5, 0);
+    for (let i = 0; i < 4; i++) solid(chest, 0.9, 0.012, 0.02, dark, 0, 0.18 + i * 0.2, 0.28), solid(chest, 0.25, 0.03, 0.03, steel, 0, 0.26 + i * 0.2, 0.3); put(root, chest, 3.0, 0, fz + 1.3, 0.1); }
+  for (const [cx, cz] of [[-1.0, fz + 3.2], [1.8, fz + 3.6]]) { const c = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.6, 14), std({ color: 0xff7a1a, roughness: 0.6 })); c.castShadow = true; put(root, c, cx, 0.3, cz); solid(root, 0.5, 0.04, 0.5, std({ color: 0x222 }), cx, 0.02, cz); }
+  for (const lx of [-7.6, 7.6]) { const arm = rod2(root, lx, 0.4 + H - 0.2, fz + 0.1, lx, 0.4 + H + 0.2, fz + 0.9, dark); const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.18, 0.3), glow); put(root, lamp, lx, 0.4 + H + 0.2, fz + 1.0); void arm; }
+  colliders.push({ cx: 0, cz: 0, hw: W / 2 + 0.6, hd: D / 2 + 0.6 }, { cx: -9.1, cz: fz + 1.1, hw: 1.0, hd: 0.7 }, { cx: -7.0, cz: fz + 1.2, hw: 1.0, hd: 0.8 }, { cx: 3.0, cz: fz + 1.3, hw: 0.7, hd: 0.5 });
+  const cs = Math.cos(stop.facing), sn = Math.sin(stop.facing);
+  return { root, colliders: colliders.map((c) => ({ x: stop.x + c.cx * cs + c.cz * sn, z: stop.z - c.cx * sn + c.cz * cs, hw: c.hw, hd: c.hd, rot: stop.facing })) };
+}
+function rod2(parent, x1, y1, z1, x2, y2, z2, mat) {
+  const a = new THREE.Vector3(x1, y1, z1), b = new THREE.Vector3(x2, y2, z2), d = b.clone().sub(a), len = d.length(), g = new THREE.CylinderGeometry(0.04, 0.04, len, 6);
+  g.translate(0, len / 2, 0); g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize())); g.translate(a.x, a.y, a.z);
+  const m = new THREE.Mesh(g, mat); parent.add(m); return m;
+}
+
 export function createStopBuilding(stop, accentColor, anim) {
+  if (stop.id === 'garage') return createGarage(stop);
   const root = new THREE.Group(), colliders = []; // colliders are oriented boxes in world coordinates
   root.position.set(stop.x, 0, stop.z); root.rotation.y = stop.facing;
   const isMeals = stop.id === 'meals';

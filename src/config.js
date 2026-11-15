@@ -26,6 +26,15 @@ export const STOPS = [
     x: 132, z: 84,
     accent: '#8a6a45',
   },
+  {
+    id: 'garage',
+    name: 'Ems Garage',
+    emoji: '🔧',
+    blurb: 'Customize your car: paint, wheels, glass, lights and interior.',
+    internal: true, // opens inside the game instead of linking out
+    x: -82, z: 76,
+    accent: '#2a78c8',
+  },
 ];
 for (const s of STOPS) {
   s.facing = Math.atan2(PLAZA.x - s.x, PLAZA.z - s.z);

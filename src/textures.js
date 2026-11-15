@@ -219,3 +219,78 @@ export function cloudTexture() {
   }
   return toTex(c, { repeat: [1, 1] });
 }
+
+// ---------- garage + interior textures ----------
+export function leatherTexture(tufted = true) { // grey-scale so material.color can tint it
+  const [c, x] = mk(256, 256), r = rng(101);
+  x.fillStyle = '#d6d6d6'; x.fillRect(0, 0, 256, 256);
+  if (tufted) {
+    const S = 64, H = S / 2;
+    for (let j = -1; j <= 9; j++) for (let i = -1; i <= 9; i++) { // pillowed diamonds (centres where i+j is odd)
+      if (((i + j) % 2 + 2) % 2 === 0) continue;
+      const cx = i * H, cy = j * H, g = x.createRadialGradient(cx, cy, 2, cx, cy, H * 1.05);
+      g.addColorStop(0, 'rgba(255,255,255,.22)'); g.addColorStop(0.65, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.42)');
+      x.fillStyle = g; x.beginPath(); x.moveTo(cx, cy - H); x.lineTo(cx + H, cy); x.lineTo(cx, cy + H); x.lineTo(cx - H, cy); x.closePath(); x.fill();
+    }
+    x.lineCap = 'round'; x.strokeStyle = 'rgba(0,0,0,.55)'; x.lineWidth = 2.2;
+    for (let k = -8; k < 12; k++) { x.beginPath(); x.moveTo(k * S, 0); x.lineTo(k * S + 256, 256); x.stroke(); x.beginPath(); x.moveTo(k * S, 256); x.lineTo(k * S + 256, 0); x.stroke(); }
+    x.strokeStyle = 'rgba(255,255,255,.35)'; x.lineWidth = 1; x.setLineDash([4, 4]);
+    for (let k = -8; k < 12; k++) { x.beginPath(); x.moveTo(k * S + 2, 0); x.lineTo(k * S + 258, 256); x.stroke(); x.beginPath(); x.moveTo(k * S + 2, 256); x.lineTo(k * S + 258, 0); x.stroke(); }
+    x.setLineDash([]);
+    for (let j = 0; j <= 8; j++) for (let i = 0; i <= 8; i++) { // buttons where creases cross
+      if ((i + j) % 2) continue;
+      const bx = i * H, by = j * H;
+      x.fillStyle = 'rgba(0,0,0,.6)'; x.beginPath(); x.arc(bx, by, 4.5, 0, 7); x.fill(); x.fillStyle = 'rgba(255,255,255,.5)'; x.beginPath(); x.arc(bx - 1, by - 1, 1.6, 0, 7); x.fill();
+    }
+  }
+  for (let i = 0; i < 5000; i++) { x.fillStyle = `rgba(${r() < 0.5 ? '0,0,0' : '255,255,255'},${r() * 0.06})`; x.fillRect(r() * 256, r() * 256, 1.5, 1.5); } // grain
+  return toTex(c, { aniso: 8 });
+}
+export function carpetTexture() {
+  const [c, x] = mk(128, 128), r = rng(103);
+  x.fillStyle = '#bdbdbd'; x.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 4500; i++) { const v = 90 + r() * 140 | 0; x.fillStyle = `rgba(${v},${v},${v},.7)`; x.fillRect(r() * 128, r() * 128, 1.5, 1.5); }
+  return toTex(c, { repeat: [3, 3] });
+}
+export function fabricTexture() {
+  const [c, x] = mk(128, 128);
+  x.fillStyle = '#e6e0cf'; x.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 128; i += 3) { x.fillStyle = 'rgba(0,0,0,.05)'; x.fillRect(i, 0, 1, 128); x.fillRect(0, i, 128, 1); }
+  return toTex(c, { repeat: [3, 3] });
+}
+export function woodTexture() {
+  const [c, x] = mk(256, 128), r = rng(107), tab = noiseTable(23);
+  noisePaint(c, x, tab, 4, 0x5c3418, 0x9a6a3a, { oct: 4, grain: 0.03 });
+  for (let i = 0; i < 90; i++) { x.strokeStyle = `rgba(30,15,5,${0.1 + r() * 0.2})`; x.lineWidth = 1 + r() * 1.5; const y = r() * 128; x.beginPath(); x.moveTo(0, y); for (let px = 0; px <= 256; px += 32) x.lineTo(px, y + Math.sin(px * 0.03 + y) * 3 + (r() - 0.5) * 1.5); x.stroke(); }
+  const g = x.createLinearGradient(0, 0, 0, 128); g.addColorStop(0, 'rgba(255,230,190,.18)'); g.addColorStop(0.5, 'rgba(255,230,190,0)'); g.addColorStop(1, 'rgba(0,0,0,.2)'); x.fillStyle = g; x.fillRect(0, 0, 256, 128);
+  return toTex(c, { aniso: 8 });
+}
+export function gaugeTexture() {
+  const [c, x] = mk(512, 192);
+  x.fillStyle = '#0d0e10'; x.fillRect(0, 0, 512, 192);
+  const dial = (cx, cy, R, from, to, labels, label, needle) => {
+    const g = x.createRadialGradient(cx, cy, 2, cx, cy, R); g.addColorStop(0, '#f1ead2'); g.addColorStop(1, '#cfc6a6'); x.fillStyle = g; x.beginPath(); x.arc(cx, cy, R, 0, 7); x.fill();
+    x.strokeStyle = '#222'; x.fillStyle = '#222'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.font = `600 ${R * 0.16}px Georgia, serif`;
+    labels.forEach((t, i) => { const a = from + (to - from) * (i / (labels.length - 1)); x.lineWidth = 2; x.beginPath(); x.moveTo(cx + Math.cos(a) * R * 0.84, cy + Math.sin(a) * R * 0.84); x.lineTo(cx + Math.cos(a) * R * 0.94, cy + Math.sin(a) * R * 0.94); x.stroke(); x.fillText(t, cx + Math.cos(a) * R * 0.66, cy + Math.sin(a) * R * 0.66); });
+    x.font = `${R * 0.13}px sans-serif`; x.fillText(label, cx, cy + R * 0.42);
+    const a = from + (to - from) * needle; x.strokeStyle = '#b3162a'; x.lineWidth = 3; x.beginPath(); x.moveTo(cx, cy); x.lineTo(cx + Math.cos(a) * R * 0.78, cy + Math.sin(a) * R * 0.78); x.stroke(); x.fillStyle = '#222'; x.beginPath(); x.arc(cx, cy, R * 0.07, 0, 7); x.fill();
+  };
+  dial(256, 96, 86, Math.PI * 0.75, Math.PI * 2.25, ['0', '20', '40', '60', '80', '100'], 'MPH', 0.28);
+  dial(96, 96, 56, Math.PI * 1.15, Math.PI * 1.85, ['E', '½', 'F'], 'FUEL', 0.7);
+  dial(416, 96, 56, Math.PI * 1.15, Math.PI * 1.85, ['C', '', 'H'], 'TEMP', 0.45);
+  return toTex(c, { aniso: 8 });
+}
+export function corrugatedTexture(color = '#cfd8dc', horizontal = false) {
+  const [c, x] = mk(128, 128);
+  x.fillStyle = color; x.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 16; i++) { const g = horizontal ? x.createLinearGradient(0, i * 8, 0, i * 8 + 8) : x.createLinearGradient(i * 8, 0, i * 8 + 8, 0); g.addColorStop(0, 'rgba(255,255,255,.22)'); g.addColorStop(0.5, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.28)'); x.fillStyle = g; if (horizontal) x.fillRect(0, i * 8, 128, 8); else x.fillRect(i * 8, 0, 8, 128); }
+  const r = rng(113); for (let i = 0; i < 200; i++) { x.fillStyle = `rgba(80,60,40,${r() * 0.06})`; x.fillRect(r() * 128, r() * 128, 2, 12); }
+  return toTex(c, { aniso: 8 });
+}
+export function rollupTexture(color = '#e9e4d6') {
+  const [c, x] = mk(256, 256);
+  x.fillStyle = color; x.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 12; i++) { const y = i * 21.3, g = x.createLinearGradient(0, y, 0, y + 21.3); g.addColorStop(0, 'rgba(255,255,255,.25)'); g.addColorStop(0.8, 'rgba(0,0,0,.05)'); g.addColorStop(1, 'rgba(0,0,0,.45)'); x.fillStyle = g; x.fillRect(0, y, 256, 21.3); }
+  x.fillStyle = 'rgba(20,30,40,.85)'; for (let i = 0; i < 4; i++) x.fillRect(16 + i * 60, 40, 44, 22); // little windows
+  return toTex(c, { aniso: 8 });
+}

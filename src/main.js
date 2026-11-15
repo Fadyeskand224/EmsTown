@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { STOPS, WORLD, PLAZA, POND, STOP_TRIGGER_RADIUS, STOP_WAKE_RADIUS } from './config.js';
 import { createWorld, inPond } from './world.js';
 import { createCar } from './car.js';
+import { loadCar } from './customize.js';
+import { createGarage } from './garage.js';
 
 const touch = matchMedia('(pointer: coarse)').matches;
 const $ = (id) => document.getElementById(id);
@@ -17,6 +19,7 @@ const camera = new THREE.PerspectiveCamera(58, 1, 0.3, 6000);
 // ---------- input ----------
 const keys = new Set();
 addEventListener('keydown', (e) => {
+  if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return; // typing in the garage's plate box
   const k = e.key.toLowerCase(); keys.add(k);
   if (k === 'escape') closePopup();
   if (k === 'r') respawn();
@@ -48,17 +51,21 @@ const SAVE = 'emstown.state';
 function openPopup(s) {
   activeStop = s;
   $('popup-emoji').textContent = s.emoji; $('popup-title').textContent = `Welcome to ${s.name}`; $('popup-text').textContent = s.blurb;
-  const a = $('popup-open'); a.href = s.url; a.textContent = `Open ${s.name}`;
+  const a = $('popup-open'); a.href = s.internal ? '#' : s.url; a.textContent = s.internal ? `Enter ${s.name}` : `Open ${s.name}`;
   popup.style.setProperty('--accent', s.accent); popup.classList.remove('hidden');
 }
 function closePopup() { if (!activeStop) return; dismissed.add(activeStop.id); activeStop = null; popup.classList.add('hidden'); }
 $('popup-close').addEventListener('click', closePopup);
 popup.addEventListener('pointerdown', (e) => { if (e.target === popup) closePopup(); });
-$('popup-open').addEventListener('click', () => { saveState(); setTimeout(closePopup, 0); }); // car stays parked here
+$('popup-open').addEventListener('click', (e) => {
+  if (activeStop?.internal) { e.preventDefault(); closePopup(); garage.open(); inGarage = true; return; } // the garage opens in-game, no page change
+  saveState(); setTimeout(closePopup, 0); // car stays parked here
+});
 
 // Free Render services sleep; poke /api/health as the car gets close so the app is awake by arrival.
 const lastWake = {};
 function wake(s) {
+  if (!s.url) return;
   const now = Date.now();
   if (lastWake[s.id] && now - lastWake[s.id] < 5 * 60 * 1000) return;
   lastWake[s.id] = now;
@@ -86,7 +93,7 @@ function initialSpawn() {
 // ---------- physics ----------
 const CAR_CIRCLES = [-1.5, 0, 1.5], CAR_R = 1.0, WHEELBASE = 3.0;
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
-let world, carModel;
+let world, carModel, garage, inGarage = false;
 
 const cgrid = new Map(), CELL = 12;
 function indexCircles(list) { for (const c of list) { const k = `${Math.floor(c.x / CELL)},${Math.floor(c.z / CELL)}`; if (!cgrid.has(k)) cgrid.set(k, []); cgrid.get(k).push(c); } }
@@ -119,7 +126,7 @@ let camH = Math.PI, orbit = 0, braking = false, orbitLock = false;
 const keyDown = (...k) => k.some((x) => keys.has(x));
 
 function stepCar(dt) {
-  const locked = !!activeStop;
+  const locked = !!activeStop || inGarage;
   let throttle = 0, steerIn = 0, hand = false;
   if (!locked) {
     if (keyDown('arrowup', 'w')) throttle += 1; if (keyDown('arrowdown', 's')) throttle -= 1;
@@ -227,13 +234,16 @@ function frame() {
 
   // chase camera
   if (window.__town && window.__town.freeCam) { world.update(dt, t, { x: car.x, z: car.z }); renderer.render(scene, camera); requestAnimationFrame(frame); return; }
-  camH += wrap(car.h - camH) * (1 - Math.exp(-3 * dt));
-  if (!orbitLock) { if (activeStop) orbit += dt * 0.3; else orbit -= orbit * Math.min(1, dt * 2); }
-  const dist = 8.6 + Math.min(speed, 30) * 0.07, hgt = 3.5 + Math.min(speed, 30) * 0.03, a = camH + orbit;
-  const want = new THREE.Vector3(car.x - Math.sin(a) * dist, hgt, car.z - Math.cos(a) * dist);
-  camera.position.lerp(want, 1 - Math.exp(-9 * dt));
-  camera.lookAt(car.x + Math.sin(a) * 5, 1.4, car.z + Math.cos(a) * 5);
-  camera.fov += ((57 + Math.min(speed, 30) * 0.35) - camera.fov) * Math.min(1, dt * 3); camera.updateProjectionMatrix();
+  if (inGarage) garage.updateCamera(dt);
+  else {
+    camH += wrap(car.h - camH) * (1 - Math.exp(-3 * dt));
+    if (!orbitLock) { if (activeStop) orbit += dt * 0.3; else orbit -= orbit * Math.min(1, dt * 2); }
+    const dist = 8.6 + Math.min(speed, 30) * 0.07, hgt = 3.5 + Math.min(speed, 30) * 0.03, a = camH + orbit;
+    const want = new THREE.Vector3(car.x - Math.sin(a) * dist, hgt, car.z - Math.cos(a) * dist);
+    camera.position.lerp(want, 1 - Math.exp(-9 * dt));
+    camera.lookAt(car.x + Math.sin(a) * 5, 1.4, car.z + Math.cos(a) * 5);
+    camera.fov += ((57 + Math.min(speed, 30) * 0.35) - camera.fov) * Math.min(1, dt * 3); camera.updateProjectionMatrix();
+  }
 
   world.update(dt, t, { x: car.x, z: car.z });
 
@@ -256,7 +266,9 @@ function init() {
   resize();
   world = createWorld(scene, renderer, camera, { touch });
   indexCircles(world.circles);
-  carModel = createCar(undefined, scene.environment); scene.add(carModel.root);
+  const carCfg = loadCar();
+  carModel = createCar(carCfg, scene.environment); scene.add(carModel.root);
+  garage = createGarage({ camera, canvas, car, carModel, cfg: carCfg, onClose: () => { inGarage = false; dismissed.add('garage'); saveState(); } });
   buildMinimap();
   initialSpawn();
   camH = car.h; camera.position.set(car.x - Math.sin(camH) * 9, 3.5, car.z - Math.cos(camH) * 9);
