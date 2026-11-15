@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#4c9a4a" />
+    <title>Ems Town</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+
+    <div id="hud">Drive to a stop: arrow keys / WASD</div>
+
+    <div id="popup" class="popup hidden" role="dialog" aria-live="polite">
+      <div class="popup-card">
+        <div id="popup-emoji" class="popup-emoji"></div>
+        <h2 id="popup-title"></h2>
+        <p id="popup-text"></p>
+        <a id="popup-open" class="btn" target="_blank" rel="noopener noreferrer">Open app</a>
+        <button id="popup-close" class="btn ghost" type="button">Keep driving</button>
+      </div>
+    </div>
+
+    <div id="stick" class="hidden"><div id="knob"></div></div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
