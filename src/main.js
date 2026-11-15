@@ -10,7 +10,7 @@ const canvas = $('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, touch ? 1.5 : 2));
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
-renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.8;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.66;
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(58, 1, 0.3, 6000);
 
@@ -84,7 +84,7 @@ function initialSpawn() {
 }
 
 // ---------- physics ----------
-const CAR_CIRCLES = [-1.35, 0, 1.35], CAR_R = 1.0, WHEELBASE = 2.6;
+const CAR_CIRCLES = [-1.5, 0, 1.5], CAR_R = 1.0, WHEELBASE = 3.0;
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 let world, carModel;
 
@@ -166,7 +166,7 @@ function stepCar(dt) {
 
   // body motion + wheels
   const speed = Math.hypot(car.vx, car.vz);
-  car.spin -= (car.vx * nfx + car.vz * nfz) * dt / 0.34;
+  car.spin -= (car.vx * nfx + car.vz * nfz) * dt / 0.375;
   car.pitch += (THREE.MathUtils.clamp(-car.ax * 0.006, -0.05, 0.05) - car.pitch) * Math.min(1, dt * 6);
   car.roll += (THREE.MathUtils.clamp(-yaw * speed * 0.0045, -0.07, 0.07) - car.roll) * Math.min(1, dt * 6);
   return speed;
@@ -256,7 +256,7 @@ function init() {
   resize();
   world = createWorld(scene, renderer, camera, { touch });
   indexCircles(world.circles);
-  carModel = createCar(); carModel.root.traverse((o) => { if (o.isMesh) { o.castShadow = true; } }); scene.add(carModel.root);
+  carModel = createCar(undefined, scene.environment); scene.add(carModel.root);
   buildMinimap();
   initialSpawn();
   camH = car.h; camera.position.set(car.x - Math.sin(camH) * 9, 3.5, car.z - Math.cos(camH) * 9);
