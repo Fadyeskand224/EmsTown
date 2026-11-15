@@ -3,14 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-    <meta name="theme-color" content="#4c9a4a" />
+    <meta name="theme-color" content="#7fb5e0" />
     <title>Ems Town</title>
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
     <canvas id="game"></canvas>
 
-    <div id="hud">Drive to a stop: arrow keys / WASD</div>
+    <div id="labels"></div>
+    <div id="hud">Drive to a stop: arrow keys / WASD · Space = handbrake · R = reset</div>
+    <canvas id="minimap" width="220" height="170"></canvas>
+    <div id="speed"><b id="speed-val">0</b><small>km/h</small></div>
 
     <div id="popup" class="popup hidden" role="dialog" aria-live="polite">
       <div class="popup-card">
@@ -23,6 +26,8 @@
     </div>
 
     <div id="stick" class="hidden"><div id="knob"></div></div>
+
+    <div id="loading"><div class="spin"></div><p>Building Ems Town…</p></div>
 
     <script type="module" src="/src/main.js"></script>
   </body>

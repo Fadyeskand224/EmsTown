@@ -1,6 +1,12 @@
-// Everything you'd want to tweak lives here. To add a stop, add one object to STOPS.
-export const WORLD = { w: 2600, h: 1800 };
+// Everything you'd want to tweak lives here. Units are metres; y is up, the ground is x/z.
+export const WORLD = { hx: 220, hz: 170 }; // half-size of the drivable valley
 
+export const PLAZA = { x: 0, z: 0, r: 13 };
+export const POND = { x: 62, z: -58, r: 24 };
+
+// Each stop is a building. Its front faces local +z; the parking pad sits PARK_DIST metres in front of it.
+// `facing` is the world heading (radians) of that +z axis. Both buildings look back toward the plaza.
+export const PARK_DIST = 21;
 export const STOPS = [
   {
     id: 'meals',
@@ -8,9 +14,8 @@ export const STOPS = [
     emoji: '🥗',
     blurb: 'Plan your week of meals, macros and groceries.',
     url: 'https://emsmeals.onrender.com',
-    x: 650, y: 520,
-    color: '#e8793a',
-    roof: '#c4552a',
+    x: -128, z: -88,
+    accent: '#e8793a',
   },
   {
     id: 'nook',
@@ -18,12 +23,14 @@ export const STOPS = [
     emoji: '📚',
     blurb: 'Your cozy bookshelf and reading nook.',
     url: 'https://emsnook.onrender.com',
-    x: 1950, y: 1250,
-    color: '#7a5a3a',
-    roof: '#4a3322',
+    x: 132, z: 84,
+    accent: '#8a6a45',
   },
 ];
+for (const s of STOPS) {
+  s.facing = Math.atan2(PLAZA.x - s.x, PLAZA.z - s.z);
+  s.park = { x: s.x + Math.sin(s.facing) * PARK_DIST, z: s.z + Math.cos(s.facing) * PARK_DIST };
+}
 
-export const STOP_TRIGGER_RADIUS = 120; // how close the car must be to open the popup
-export const STOP_WAKE_RADIUS = 600;    // start waking the sleeping Render service from this far away
-export const START = { x: 1300, y: 900, angle: -Math.PI / 2 };
+export const STOP_TRIGGER_RADIUS = 5.5; // metres from the pad centre that open the popup
+export const STOP_WAKE_RADIUS = 160;    // start waking the sleeping Render service from this far away
